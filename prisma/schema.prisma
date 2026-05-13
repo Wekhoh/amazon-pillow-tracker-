@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Asin {
+  id            Int            @id @default(autoincrement())
+  code          String         @unique
+  label         String         @unique
+  color         String
+  sku           String?
+  dailyRecords  DailyRecord[]
+  unitEconomics UnitEconomics?
+  createdAt     DateTime       @default(now())
+}
+
+model Phase {
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  startDay Int
+  endDay   Int
+}
+
+model DailyRecord {
+  id              Int      @id @default(autoincrement())
+  asinId          Int
+  asin            Asin     @relation(fields: [asinId], references: [id])
+  date            DateTime
+  dayNum          Int
+  totalOrders     Int      @default(0)
+  unitsOrdered    Int      @default(0)
+  adOrders        Int      @default(0)
+  adSpendUsd      Float    @default(0)
+  adSalesUsd      Float    @default(0)
+  totalSalesUsd   Float    @default(0)
+  impressions     Int      @default(0)
+  clicks          Int      @default(0)
+  sessions        Int      @default(0)
+  inventory       Int?
+  notes           String?
+  source          String   @default("excel")
+  importTimestamp DateTime @default(now())
+
+  @@unique([asinId, date])
+  @@index([asinId, date])
+}
+
+model UnitEconomics {
+  id                     Int   @id @default(autoincrement())
+  asinId                 Int   @unique
+  asin                   Asin  @relation(fields: [asinId], references: [id])
+  priceUsd               Float
+  fxRateCnyPerUsd        Float
+  cogsPurchaseCny        Float
+  cogsShippingCny        Float
+  cogsPackagingCny       Float @default(0)
+  fbaFeeUsd              Float
+  inboundFeeUsd          Float
+  storageAmortizationUsd Float
+  commissionRate         Float
+  returnRateEstimate     Float
+  returnThreshold        Float
+  returnFeeUsd           Float
+  inventoryQty           Int
+  adBudgetCny            Float
+}
+
+model Param {
+  key         String   @id
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt
+}
