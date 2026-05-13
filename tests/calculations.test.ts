@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { getPhase, rolling7d, type DailyMetric } from "../src/lib/calculations";
+import {
+	getPhase,
+	rolling7d,
+	quadrant,
+	type DailyMetric,
+} from "../src/lib/calculations";
 
 describe("getPhase", () => {
 	it("returns D0-7 for days 0-7", () => {
@@ -89,5 +94,58 @@ describe("rolling7d", () => {
 		const result = rolling7d(sample, 1);
 		expect(result.acos).toBeNull();
 		expect(result.tacos).toBeNull();
+	});
+});
+
+describe("quadrant", () => {
+	it("returns 双改善 when both ACoS and TACoS drop", () => {
+		expect(
+			quadrant({
+				currAcos: 0.3,
+				prevAcos: 0.35,
+				currTacos: 0.15,
+				prevTacos: 0.18,
+			}),
+		).toBe("双改善");
+	});
+	it("returns 自然增长信号 when ACoS rises but TACoS drops", () => {
+		expect(
+			quadrant({
+				currAcos: 0.4,
+				prevAcos: 0.35,
+				currTacos: 0.15,
+				prevTacos: 0.18,
+			}),
+		).toBe("自然增长信号");
+	});
+	it("returns 降本但承压 when ACoS drops but TACoS rises", () => {
+		expect(
+			quadrant({
+				currAcos: 0.3,
+				prevAcos: 0.35,
+				currTacos: 0.22,
+				prevTacos: 0.18,
+			}),
+		).toBe("降本但承压");
+	});
+	it("returns 依赖加重 when both rise", () => {
+		expect(
+			quadrant({
+				currAcos: 0.4,
+				prevAcos: 0.35,
+				currTacos: 0.22,
+				prevTacos: 0.18,
+			}),
+		).toBe("依赖加重");
+	});
+	it("returns insufficient_data when any input is null", () => {
+		expect(
+			quadrant({
+				currAcos: null,
+				prevAcos: 0.35,
+				currTacos: 0.15,
+				prevTacos: 0.18,
+			}),
+		).toBe("insufficient_data");
 	});
 });

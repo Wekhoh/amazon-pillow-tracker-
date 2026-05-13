@@ -64,3 +64,39 @@ export function rolling7d(
 		roas: spend > 0 ? adSales / spend : null,
 	};
 }
+
+export type Quadrant =
+	| "双改善"
+	| "自然增长信号"
+	| "降本但承压"
+	| "依赖加重"
+	| "insufficient_data";
+
+interface QuadrantInput {
+	currAcos: number | null;
+	prevAcos: number | null;
+	currTacos: number | null;
+	prevTacos: number | null;
+}
+
+export function quadrant({
+	currAcos,
+	prevAcos,
+	currTacos,
+	prevTacos,
+}: QuadrantInput): Quadrant {
+	if (
+		currAcos === null ||
+		prevAcos === null ||
+		currTacos === null ||
+		prevTacos === null
+	) {
+		return "insufficient_data";
+	}
+	const acosUp = currAcos >= prevAcos;
+	const tacosUp = currTacos >= prevTacos;
+	if (!acosUp && !tacosUp) return "双改善";
+	if (acosUp && !tacosUp) return "自然增长信号";
+	if (!acosUp && tacosUp) return "降本但承压";
+	return "依赖加重";
+}
