@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getPhase } from "../src/lib/calculations";
+import { getPhase, rolling7d, type DailyMetric } from "../src/lib/calculations";
 
 describe("getPhase", () => {
 	it("returns D0-7 for days 0-7", () => {
@@ -25,5 +25,69 @@ describe("getPhase", () => {
 	});
 	it("handles negative days as pre-launch", () => {
 		expect(getPhase(-1)).toBe("pre-launch");
+	});
+});
+
+describe("rolling7d", () => {
+	const sample: DailyMetric[] = [
+		{
+			date: new Date("2026-04-09"),
+			adSpendUsd: 0,
+			adSalesUsd: 0,
+			totalSalesUsd: 0,
+			clicks: 0,
+			adOrders: 0,
+			totalOrders: 0,
+		},
+		{
+			date: new Date("2026-04-10"),
+			adSpendUsd: 0.55,
+			adSalesUsd: 0,
+			totalSalesUsd: 0,
+			clicks: 1,
+			adOrders: 0,
+			totalOrders: 0,
+		},
+		{
+			date: new Date("2026-04-11"),
+			adSpendUsd: 10,
+			adSalesUsd: 24,
+			totalSalesUsd: 50,
+			clicks: 5,
+			adOrders: 1,
+			totalOrders: 2,
+		},
+		{
+			date: new Date("2026-04-12"),
+			adSpendUsd: 20,
+			adSalesUsd: 48,
+			totalSalesUsd: 100,
+			clicks: 10,
+			adOrders: 2,
+			totalOrders: 4,
+		},
+	];
+
+	it("for first row, returns single-row metric", () => {
+		const result = rolling7d(sample, 0);
+		expect(result.spend).toBe(0);
+		expect(result.acos).toBeNull();
+	});
+
+	it("for day 4 (index 3), sums all 4 days since under 7", () => {
+		const result = rolling7d(sample, 3);
+		expect(result.spend).toBeCloseTo(30.55);
+		expect(result.adSales).toBe(72);
+		expect(result.totalSales).toBe(150);
+		expect(result.acos).toBeCloseTo(30.55 / 72);
+		expect(result.tacos).toBeCloseTo(30.55 / 150);
+		expect(result.clicks).toBe(16);
+		expect(result.cvr).toBeCloseTo(3 / 16);
+	});
+
+	it("returns null for ratios when denominator is 0", () => {
+		const result = rolling7d(sample, 1);
+		expect(result.acos).toBeNull();
+		expect(result.tacos).toBeNull();
 	});
 });
