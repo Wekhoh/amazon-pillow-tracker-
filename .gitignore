@@ -45,3 +45,6 @@ next-env.d.ts
 data/*.db
 data/*.db-journal
 *.log
+
+# test fixtures (large binary files; not version-controlled)
+tests/fixtures/*.xlsx
