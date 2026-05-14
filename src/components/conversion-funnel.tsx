@@ -12,14 +12,24 @@ interface ConversionFunnelProps {
 	steps: FunnelStep[];
 }
 
+function getWidthPct(steps: FunnelStep[], i: number): number {
+	if (i === 0) return 100;
+	const s = steps[i];
+	if (s.conversionFromPrev === undefined) {
+		return 30;
+	}
+	const logVal = Math.log10(Math.max(1, s.value));
+	const logMax = Math.log10(Math.max(1, steps[0].value));
+	return Math.max(20, Math.min(100, (logVal / logMax) * 100));
+}
+
 export function ConversionFunnel({ steps }: ConversionFunnelProps) {
 	if (steps.length === 0) return null;
-	const max = steps[0].value || 1;
 
 	return (
 		<div className="space-y-4">
 			{steps.map((s, i) => {
-				const widthPct = Math.max(2, (s.value / max) * 100);
+				const widthPct = getWidthPct(steps, i);
 				const dropFromPrev =
 					i > 0 ? 1 - s.value / (steps[i - 1].value || 1) : 0;
 				return (
