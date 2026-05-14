@@ -1,6 +1,17 @@
 "use client";
 
+import {
+	Card,
+	CardHeader,
+	CardDescription,
+	CardTitle,
+	CardAction,
+	CardContent,
+} from "@/components/ui/card";
 import { Sparkline } from "@/components/sparkline";
+import { Num } from "@/components/num";
+import { Badge } from "@/components/ui/badge";
+import { TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface HeroKpiProps {
@@ -15,9 +26,12 @@ interface HeroKpiProps {
 	hint?: string;
 }
 
-const statusBorder: Record<string, string | undefined> = {
+const statusBorder: Record<
+	NonNullable<HeroKpiProps["status"]>,
+	string | undefined
+> = {
 	default: undefined,
-	good: "#22c55e",
+	good: "#10b981",
 	warning: "#f59e0b",
 	critical: "#ef4444",
 };
@@ -34,52 +48,71 @@ export function HeroKpi({
 	hint,
 }: HeroKpiProps) {
 	const isGood =
-		delta !== null && delta !== undefined
-			? deltaInverted
+		delta === null || delta === undefined
+			? null
+			: deltaInverted
 				? delta < 0
-				: delta > 0
-			: null;
+				: delta > 0;
 
 	return (
-		<div
-			className={cn(
-				"rounded-md border bg-card p-3 flex flex-col gap-1 transition-colors",
-				status !== "default" && "border-2",
-			)}
+		<Card
+			className={cn("gap-3", status !== "default" && "ring-2")}
 			style={
-				status !== "default" ? { borderColor: statusBorder[status] } : undefined
+				status !== "default"
+					? {
+							boxShadow: `inset 0 0 0 1px ${statusBorder[status]}`,
+						}
+					: undefined
 			}
 		>
-			<div className="flex justify-between items-start gap-1">
-				<span className="text-[10px] uppercase tracking-wide text-muted-foreground font-medium leading-tight">
+			<CardHeader>
+				<CardDescription className="text-xs font-medium">
 					{label}
-				</span>
+				</CardDescription>
+				<CardTitle className="text-2xl font-semibold tracking-tight">
+					<Num>{value}</Num>
+					{unit && (
+						<span className="text-sm font-normal text-muted-foreground ml-1">
+							{unit}
+						</span>
+					)}
+				</CardTitle>
 				{delta !== null && delta !== undefined && (
-					<span
-						className={cn(
-							"text-[10px] tabular-nums font-semibold",
-							isGood ? "text-emerald-500" : "text-rose-500",
-						)}
-					>
-						{delta > 0 ? "+" : ""}
-						{(delta * 100).toFixed(1)}%
-					</span>
+					<CardAction>
+						<Badge
+							variant="outline"
+							className={cn(
+								"gap-1",
+								isGood
+									? "text-emerald-500 border-emerald-500/40"
+									: "text-red-500 border-red-500/40",
+							)}
+						>
+							{isGood ? (
+								<TrendingUp className="size-3" />
+							) : (
+								<TrendingDown className="size-3" />
+							)}
+							<Num>
+								{delta > 0 ? "+" : ""}
+								{(delta * 100).toFixed(1)}%
+							</Num>
+						</Badge>
+					</CardAction>
 				)}
-			</div>
-			<div className="flex items-baseline gap-1">
-				<span className="text-xl font-bold tabular-nums">{value}</span>
-				{unit && <span className="text-xs text-muted-foreground">{unit}</span>}
-			</div>
-			{sparkData && sparkData.length > 1 && (
-				<Sparkline
-					data={sparkData}
-					color={sparkColor ?? "#3b82f6"}
-					height={24}
-				/>
-			)}
-			{hint && (
-				<span className="text-[10px] text-muted-foreground">{hint}</span>
-			)}
-		</div>
+			</CardHeader>
+			<CardContent className="flex flex-col gap-1.5">
+				{sparkData && sparkData.length > 1 && (
+					<div className="w-full">
+						<Sparkline
+							data={sparkData}
+							color={sparkColor ?? "#2563eb"}
+							height={32}
+						/>
+					</div>
+				)}
+				{hint && <div className="text-xs text-muted-foreground">{hint}</div>}
+			</CardContent>
+		</Card>
 	);
 }

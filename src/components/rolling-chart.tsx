@@ -20,76 +20,108 @@ interface DataPoint {
 }
 
 export function RollingChart({ data }: { data: DataPoint[] }) {
+	const interval = Math.max(0, Math.floor(data.length / 8));
 	return (
-		<ResponsiveContainer width="100%" height={320}>
-			<LineChart data={data}>
-				<CartesianGrid strokeDasharray="3 3" />
-				<XAxis dataKey="date" tick={{ fontSize: 11 }} />
-				<YAxis
-					yAxisId="left"
-					tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`}
-					tick={{ fontSize: 11 }}
-				/>
-				<YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
-				<Tooltip
-					formatter={(value, name) => {
-						if (value === null || value === undefined) return "—";
-						const num = typeof value === "number" ? value : Number(value);
-						if (Number.isNaN(num)) return "—";
-						if (name === "ROAS") return num.toFixed(2);
-						return `${(num * 100).toFixed(2)}%`;
-					}}
-				/>
-				<Legend />
-				<Line
-					yAxisId="left"
-					type="monotone"
-					dataKey="acos"
-					stroke="#dc2626"
-					name="ACoS"
-					strokeWidth={2}
-					dot={{ r: 2 }}
-					activeDot={{ r: 5 }}
-					isAnimationActive={false}
-					connectNulls
-				/>
-				<Line
-					yAxisId="left"
-					type="monotone"
-					dataKey="tacos"
-					stroke="#f97316"
-					name="TACoS"
-					strokeWidth={2}
-					dot={{ r: 2 }}
-					activeDot={{ r: 5 }}
-					isAnimationActive={false}
-					connectNulls
-				/>
-				<Line
-					yAxisId="left"
-					type="monotone"
-					dataKey="cvr"
-					stroke="#16a34a"
-					name="CVR"
-					strokeWidth={2}
-					dot={{ r: 2 }}
-					activeDot={{ r: 5 }}
-					isAnimationActive={false}
-					connectNulls
-				/>
-				<Line
-					yAxisId="right"
-					type="monotone"
-					dataKey="roas"
-					stroke="#2563eb"
-					name="ROAS"
-					strokeWidth={2}
-					dot={{ r: 2 }}
-					activeDot={{ r: 5 }}
-					isAnimationActive={false}
-					connectNulls
-				/>
-			</LineChart>
-		</ResponsiveContainer>
+		<div className="aspect-[16/7] w-full">
+			<ResponsiveContainer width="100%" height="100%">
+				<LineChart
+					data={data}
+					margin={{ top: 8, right: 16, left: 0, bottom: 8 }}
+				>
+					<CartesianGrid
+						strokeDasharray="3 3"
+						stroke="hsl(var(--border))"
+						opacity={0.4}
+					/>
+					<XAxis
+						dataKey="date"
+						tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+						interval={interval}
+						tickLine={false}
+						axisLine={false}
+					/>
+					<YAxis
+						yAxisId="left"
+						tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`}
+						tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+						tickLine={false}
+						axisLine={false}
+						width={40}
+					/>
+					<YAxis
+						yAxisId="right"
+						orientation="right"
+						tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+						tickLine={false}
+						axisLine={false}
+						width={30}
+					/>
+					<Tooltip
+						contentStyle={{
+							backgroundColor: "hsl(var(--popover))",
+							borderColor: "hsl(var(--border))",
+							fontSize: 12,
+							borderRadius: 6,
+						}}
+						formatter={(value, name) => {
+							if (value === null || value === undefined) return "—";
+							const num = typeof value === "number" ? value : Number(value);
+							if (Number.isNaN(num)) return "—";
+							if (name === "ROAS") return num.toFixed(2);
+							return `${(num * 100).toFixed(2)}%`;
+						}}
+					/>
+					<Legend wrapperStyle={{ fontSize: 11 }} iconSize={8} />
+					<Line
+						yAxisId="left"
+						type="monotone"
+						dataKey="acos"
+						stroke="#ef4444"
+						strokeWidth={2}
+						dot={false}
+						activeDot={{ r: 4 }}
+						name="ACoS"
+						connectNulls
+						isAnimationActive={false}
+					/>
+					<Line
+						yAxisId="left"
+						type="monotone"
+						dataKey="tacos"
+						stroke="#f59e0b"
+						strokeWidth={2}
+						dot={false}
+						activeDot={{ r: 4 }}
+						name="TACoS"
+						connectNulls
+						isAnimationActive={false}
+					/>
+					<Line
+						yAxisId="left"
+						type="monotone"
+						dataKey="cvr"
+						stroke="#10b981"
+						strokeWidth={2}
+						dot={false}
+						activeDot={{ r: 4 }}
+						name="CVR"
+						connectNulls
+						isAnimationActive={false}
+					/>
+					<Line
+						yAxisId="right"
+						type="monotone"
+						dataKey="roas"
+						stroke="#2563eb"
+						strokeWidth={2}
+						dot={false}
+						activeDot={{ r: 4 }}
+						name="ROAS"
+						connectNulls
+						isAnimationActive={false}
+					/>
+				</LineChart>
+			</ResponsiveContainer>
+		</div>
 	);
 }

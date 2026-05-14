@@ -1,54 +1,92 @@
 import { cn } from "@/lib/utils";
+import { Num } from "@/components/num";
+import { CheckCircle2, Circle, Clock } from "lucide-react";
+import type { Phase } from "@/lib/calculations";
 
 interface StageEntry {
-	name: string;
+	name: Exclude<Phase, "pre-launch">;
 	startDay: number;
 	endDay: number;
 	label: string;
+	hint: string;
 }
 
 const STAGES: StageEntry[] = [
-	{ name: "D0-7", startDay: 0, endDay: 7, label: "冷启动" },
-	{ name: "D8-21", startDay: 8, endDay: 21, label: "爬升" },
-	{ name: "D22-45", startDay: 22, endDay: 45, label: "稳定" },
-	{ name: "D46-90", startDay: 46, endDay: 90, label: "盈利期" },
-	{ name: "D91-180", startDay: 91, endDay: 180, label: "监控/清尾" },
+	{
+		name: "D0-7",
+		startDay: 0,
+		endDay: 7,
+		label: "冷启动",
+		hint: "拿曝光、建权重",
+	},
+	{
+		name: "D8-21",
+		startDay: 8,
+		endDay: 21,
+		label: "爬升",
+		hint: "测词、筛活动",
+	},
+	{
+		name: "D22-45",
+		startDay: 22,
+		endDay: 45,
+		label: "稳定",
+		hint: "出价精细化",
+	},
+	{
+		name: "D46-90",
+		startDay: 46,
+		endDay: 90,
+		label: "盈利期",
+		hint: "降广告占比",
+	},
+	{
+		name: "D91-180",
+		startDay: 91,
+		endDay: 180,
+		label: "监控/清尾",
+		hint: "动态决策",
+	},
 ];
 
 export function StageTimeline({ currentDay }: { currentDay: number }) {
 	return (
-		<div className="space-y-2.5">
+		<ol className="space-y-3">
 			{STAGES.map((s) => {
 				const inThis = currentDay >= s.startDay && currentDay <= s.endDay;
 				const done = currentDay > s.endDay;
+				const Icon = done ? CheckCircle2 : inThis ? Clock : Circle;
 				return (
-					<div key={s.name} className="flex items-center gap-3 text-sm">
-						<div
+					<li key={s.name} className="flex items-start gap-3 text-sm">
+						<Icon
 							className={cn(
-								"h-2.5 w-2.5 rounded-full flex-shrink-0",
-								inThis
-									? "bg-blue-500 ring-4 ring-blue-500/30"
-									: done
-										? "bg-blue-300"
-										: "bg-muted-foreground/30",
+								"size-4 mt-0.5 flex-shrink-0",
+								done && "text-emerald-500",
+								inThis && "text-blue-500",
+								!done && !inThis && "text-muted-foreground",
 							)}
 						/>
-						<div className="flex-1 flex justify-between items-baseline">
-							<span
-								className={cn(
-									"tabular-nums",
-									inThis && "font-semibold text-foreground",
-									done && "text-muted-foreground",
-									!inThis && !done && "text-muted-foreground",
-								)}
-							>
-								{s.name}{" "}
-								<span className="text-muted-foreground">· {s.label}</span>
-							</span>
+						<div className="flex-1 flex items-baseline justify-between gap-3">
+							<div className="space-y-0.5">
+								<div
+									className={cn(
+										"font-medium leading-none",
+										inThis && "text-foreground",
+										!inThis && "text-muted-foreground",
+									)}
+								>
+									{s.name}{" "}
+									<span className="text-xs text-muted-foreground">
+										· {s.label}
+									</span>
+								</div>
+								<div className="text-[11px] text-muted-foreground">
+									{s.hint}
+								</div>
+							</div>
 							{inThis && (
-								<span className="text-xs text-blue-500 font-medium tabular-nums">
-									Day {currentDay} / {s.endDay} ({s.endDay - currentDay + 1}{" "}
-									天剩余)
+								<span className="text-xs text-blue-500">
+									Day <Num>{currentDay}</Num>/<Num>{s.endDay}</Num>
 								</span>
 							)}
 							{done && (
@@ -58,9 +96,9 @@ export function StageTimeline({ currentDay }: { currentDay: number }) {
 								<span className="text-xs text-muted-foreground">未开始</span>
 							)}
 						</div>
-					</div>
+					</li>
 				);
 			})}
-		</div>
+		</ol>
 	);
 }

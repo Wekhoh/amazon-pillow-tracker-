@@ -15,6 +15,24 @@ import { ConversionFunnel } from "@/components/conversion-funnel";
 import { ActionPanel } from "@/components/action-panel";
 import { EconomicsWaterfall } from "@/components/economics-waterfall";
 import { RollingChart } from "@/components/rolling-chart";
+import {
+	Card,
+	CardHeader,
+	CardTitle,
+	CardDescription,
+	CardContent,
+	CardAction,
+} from "@/components/ui/card";
+import {
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeader,
+	TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Num } from "@/components/num";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +51,7 @@ export default async function HomePage({ searchParams }: PageProps) {
 	if (!asin) {
 		return (
 			<div className="text-red-500">
-				ASIN {label} 未在数据库中。请先运行 <code>pnpm prisma db seed</code>
+				ASIN {label} 未找到，请先运行 <code>pnpm prisma db seed</code>
 			</div>
 		);
 	}
@@ -42,15 +60,11 @@ export default async function HomePage({ searchParams }: PageProps) {
 		where: { asinId: asin.id },
 		orderBy: { date: "asc" },
 	});
-
 	if (records.length === 0) {
 		return (
-			<div>
-				<h2 className="text-xl font-semibold mb-2">还没有数据</h2>
-				<p>
-					请运行 <code className="px-1 py-0.5 bg-muted rounded">pnpm sync</code>{" "}
-					从 Excel 同步
-				</p>
+			<div className="p-6">
+				未同步数据，请先运行{" "}
+				<code className="px-1 py-0.5 bg-muted rounded">pnpm sync</code>
 			</div>
 		);
 	}
@@ -70,9 +84,6 @@ export default async function HomePage({ searchParams }: PageProps) {
 	const latestRow = records[latestIdx];
 	const phase = getPhase(latestRow.dayNum);
 
-	const totalSpend = records.reduce((s, r) => s + r.adSpendUsd, 0);
-	const totalSales = records.reduce((s, r) => s + r.totalSalesUsd, 0);
-	const totalOrders = records.reduce((s, r) => s + r.totalOrders, 0);
 	const totalImpr = records.reduce((s, r) => s + r.impressions, 0);
 	const totalClicks = records.reduce((s, r) => s + r.clicks, 0);
 	const totalAdOrders = records.reduce((s, r) => s + r.adOrders, 0);
@@ -117,7 +128,7 @@ export default async function HomePage({ searchParams }: PageProps) {
 		})
 		.filter((p): p is NonNullable<typeof p> => p !== null);
 
-	const totalConvFunnel = [
+	const funnelSteps = [
 		{ label: "曝光", value: totalImpr, color: "#3b82f6" },
 		{
 			label: "点击",
@@ -140,27 +151,36 @@ export default async function HomePage({ searchParams }: PageProps) {
 	];
 
 	const ue = asin.unitEconomics;
-	let economicsProps: React.ComponentProps<typeof EconomicsWaterfall> | null =
-		null;
-	if (ue) {
-		const cogsUsd =
-			(ue.cogsPurchaseCny + ue.cogsShippingCny + ue.cogsPackagingCny) /
-			ue.fxRateCnyPerUsd;
-		const commissionUsd = ue.priceUsd * ue.commissionRate;
-		const returnFeeUsd =
-			Math.max(0, ue.returnRateEstimate - ue.returnThreshold) * ue.returnFeeUsd;
-		const paymentFeeUsd = +(ue.priceUsd * 0.007).toFixed(2);
-		economicsProps = {
-			priceUsd: ue.priceUsd,
-			cogsUsd: +cogsUsd.toFixed(2),
-			commissionUsd: +commissionUsd.toFixed(2),
-			fbaFeeUsd: ue.fbaFeeUsd,
-			inboundFeeUsd: ue.inboundFeeUsd,
-			storageAmortUsd: ue.storageAmortizationUsd,
-			returnFeeUsd: +returnFeeUsd.toFixed(2),
-			paymentFeeUsd,
-		};
-	}
+	const economicsProps = ue
+		? {
+				priceUsd: ue.priceUsd,
+				cogsUsd: +(
+					(ue.cogsPurchaseCny + ue.cogsShippingCny + ue.cogsPackagingCny) /
+					ue.fxRateCnyPerUsd
+				).toFixed(2),
+				commissionUsd: +(ue.priceUsd * ue.commissionRate).toFixed(2),
+				fbaFeeUsd: ue.fbaFeeUsd,
+				inboundFeeUsd: ue.inboundFeeUsd,
+				storageAmortUsd: ue.storageAmortizationUsd,
+				returnFeeUsd: +(
+					Math.max(0, ue.returnRateEstimate - ue.returnThreshold) *
+					ue.returnFeeUsd
+				).toFixed(2),
+				paymentFeeUsd: +(ue.priceUsd * 0.007).toFixed(2),
+			}
+		: null;
+
+	const breakEvenAcos = economicsProps
+		? (economicsProps.priceUsd -
+				economicsProps.cogsUsd -
+				economicsProps.commissionUsd -
+				economicsProps.fbaFeeUsd -
+				economicsProps.inboundFeeUsd -
+				economicsProps.storageAmortUsd -
+				economicsProps.returnFeeUsd -
+				economicsProps.paymentFeeUsd) /
+			economicsProps.priceUsd
+		: null;
 
 	const chartData = metrics.map((_, i) => {
 		const r = rolling7d(metrics, i);
@@ -173,10 +193,7 @@ export default async function HomePage({ searchParams }: PageProps) {
 		};
 	});
 
-	const latestCtr =
-		latestRow.impressions > 0 ? latestRow.clicks / latestRow.impressions : null;
-	const latestCpc =
-		latestRow.clicks > 0 ? latestRow.adSpendUsd / latestRow.clicks : null;
+	const recent7 = records.slice(-7).reverse();
 
 	const fmtPct = (v: number | null, digits = 1) =>
 		v === null ? "—" : `${(v * 100).toFixed(digits)}`;
@@ -192,135 +209,248 @@ export default async function HomePage({ searchParams }: PageProps) {
 					? "warning"
 					: "good";
 
+	const tacosStatus =
+		latest.tacos !== null && latest.tacos > tacosRedline
+			? "warning"
+			: "default";
+	const roasStatus =
+		latest.roas !== null && latest.roas < 1 ? "critical" : "default";
+
 	return (
-		<div className="space-y-6">
-			<header className="flex justify-between items-start gap-4">
-				<div>
-					<h2 className="text-2xl font-bold tabular-nums">
-						{label}{" "}
-						<span className="text-muted-foreground font-normal text-lg">
-							({asin.color}) · {asin.code}
+		<div className="flex flex-col gap-6 max-w-screen-2xl">
+			{/* Header */}
+			<header className="flex items-end justify-between border-b pb-4 -mt-2 gap-4">
+				<div className="space-y-1.5">
+					<div className="flex items-center gap-2">
+						<Badge variant="outline" className="text-[10px]">
+							{phase}
+						</Badge>
+						<Badge variant="secondary" className="text-[10px]">
+							Day <Num className="ml-0.5">{latestRow.dayNum}</Num>
+						</Badge>
+						<span className="text-xs text-muted-foreground">
+							· 最新数据 {latestRow.date.toISOString().slice(0, 10)}
 						</span>
-					</h2>
-					<p className="text-muted-foreground text-sm mt-0.5">
-						最新数据：{latestRow.date.toISOString().slice(0, 10)} · Day{" "}
-						{latestRow.dayNum} · 当前阶段{" "}
-						<span className="font-semibold text-foreground">{phase}</span>
-					</p>
+					</div>
+					<h1 className="text-2xl font-semibold tracking-tight">
+						{label}{" "}
+						<span className="text-muted-foreground font-normal">
+							· {asin.color}
+						</span>
+					</h1>
+					<p className="text-xs text-muted-foreground font-mono">{asin.code}</p>
 				</div>
 				<AsinSwitcher />
 			</header>
 
-			<section className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-12 gap-2">
+			{/* Hero Strip — only 4 KPIs, big and proud */}
+			<section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 				<HeroKpi
-					label="ACoS 7D"
+					label="Rolling 7D ACoS"
 					value={fmtPct(latest.acos)}
 					unit="%"
 					delta={deltaAcos}
 					deltaInverted
 					sparkData={sparkAcos}
-					sparkColor="#dc2626"
+					sparkColor="#ef4444"
 					status={acosStatus}
 					hint={`红线 ${(tacosRedline * 100).toFixed(2)}%`}
 				/>
 				<HeroKpi
-					label="TACoS 7D"
+					label="Rolling 7D TACoS"
 					value={fmtPct(latest.tacos)}
 					unit="%"
 					delta={deltaTacos}
 					deltaInverted
 					sparkData={sparkTacos}
-					sparkColor="#f97316"
+					sparkColor="#f59e0b"
+					status={tacosStatus}
 				/>
 				<HeroKpi
-					label="CVR 7D"
+					label="Rolling 7D CVR"
 					value={fmtPct(latest.cvr)}
 					unit="%"
 					delta={deltaCvr}
 					sparkData={sparkCvr}
-					sparkColor="#16a34a"
+					sparkColor="#10b981"
 					hint={`目标 ${(targetCvr * 100).toFixed(0)}%`}
 				/>
 				<HeroKpi
-					label="ROAS 7D"
+					label="Rolling 7D ROAS"
 					value={fmtNum(latest.roas)}
 					delta={deltaRoas}
 					sparkData={sparkRoas}
 					sparkColor="#2563eb"
-				/>
-				<HeroKpi label="CTR 当日" value={fmtPct(latestCtr, 2)} unit="%" />
-				<HeroKpi
-					label="CPC 当日"
-					value={latestCpc !== null ? `$${latestCpc.toFixed(2)}` : "—"}
-				/>
-				<HeroKpi
-					label="当日花费"
-					value={`$${latestRow.adSpendUsd.toFixed(2)}`}
-				/>
-				<HeroKpi
-					label="当日销售"
-					value={`$${latestRow.totalSalesUsd.toFixed(2)}`}
-				/>
-				<HeroKpi
-					label="当日单量"
-					value={latestRow.totalOrders.toString()}
-					hint={`广告 ${latestRow.adOrders} / 自然 ${latestRow.totalOrders - latestRow.adOrders}`}
-				/>
-				<HeroKpi
-					label="库存可售"
-					value={latestRow.inventory?.toString() ?? "—"}
-					status={latestRow.inventory === null ? "warning" : "default"}
-					hint={latestRow.inventory === null ? "未填" : undefined}
-				/>
-				<HeroKpi label="累计花费" value={`$${totalSpend.toFixed(0)}`} />
-				<HeroKpi
-					label="累计销售"
-					value={`$${totalSales.toFixed(0)}`}
-					hint={`${totalOrders} 单`}
+					status={roasStatus}
+					hint="盈亏线 1.00"
 				/>
 			</section>
 
-			<div className="grid grid-cols-12 gap-4">
-				<section className="col-span-12 lg:col-span-5 rounded-lg border bg-card p-4">
-					<h3 className="text-sm font-semibold mb-3">阶段进度</h3>
-					<StageTimeline currentDay={latestRow.dayNum} />
-				</section>
-				<section className="col-span-12 lg:col-span-7 rounded-lg border bg-card p-4">
-					<h3 className="text-sm font-semibold mb-3">
-						四象限定位（ΔACoS × ΔTACoS）
-					</h3>
-					<QuadrantScatter points={quadPoints} />
-				</section>
-			</div>
+			{/* Section A: Trend + Action */}
+			<section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+				<Card className="lg:col-span-8">
+					<CardHeader>
+						<CardTitle>核心趋势</CardTitle>
+						<CardDescription>
+							Rolling 7D · 4 指标 {records.length} 天走势
+						</CardDescription>
+						<CardAction>
+							<Badge variant="outline" className="text-[10px] font-normal">
+								Day 0 · {records[0].date.toISOString().slice(5, 10)} → Day{" "}
+								{latestRow.dayNum}
+							</Badge>
+						</CardAction>
+					</CardHeader>
+					<CardContent>
+						<RollingChart data={chartData} />
+					</CardContent>
+				</Card>
+				<Card className="lg:col-span-4">
+					<CardHeader>
+						<CardTitle>行动建议</CardTitle>
+						<CardDescription>基于阈值规则自动生成</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<ActionPanel insights={insights} />
+					</CardContent>
+				</Card>
+			</section>
 
-			<div className="grid grid-cols-12 gap-4">
-				<section className="col-span-12 lg:col-span-7 rounded-lg border bg-card p-4">
-					<h3 className="text-sm font-semibold mb-3">Rolling 7D 趋势</h3>
-					<RollingChart data={chartData} />
-				</section>
-				<section className="col-span-12 lg:col-span-5 rounded-lg border bg-card p-4">
-					<h3 className="text-sm font-semibold mb-3">累计转化漏斗</h3>
-					<ConversionFunnel steps={totalConvFunnel} />
-				</section>
-			</div>
+			{/* Section B: Stage + Quadrant */}
+			<section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+				<Card className="lg:col-span-4">
+					<CardHeader>
+						<CardTitle>阶段进度</CardTitle>
+						<CardDescription>5 阶段路线图</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<StageTimeline currentDay={latestRow.dayNum} />
+					</CardContent>
+				</Card>
+				<Card className="lg:col-span-8">
+					<CardHeader>
+						<CardTitle>四象限定位</CardTitle>
+						<CardDescription>ΔACoS × ΔTACoS · 当前 vs 前 7 天</CardDescription>
+						<CardAction>
+							<Badge variant="outline" className="text-[10px] font-normal">
+								14 天后启用
+							</Badge>
+						</CardAction>
+					</CardHeader>
+					<CardContent>
+						<QuadrantScatter points={quadPoints} />
+					</CardContent>
+				</Card>
+			</section>
 
-			<div className="grid grid-cols-12 gap-4">
-				<section className="col-span-12 lg:col-span-5 rounded-lg border bg-card p-4">
-					<h3 className="text-sm font-semibold mb-3">行动建议</h3>
-					<ActionPanel insights={insights} />
-				</section>
-				<section className="col-span-12 lg:col-span-7 rounded-lg border bg-card p-4">
-					<h3 className="text-sm font-semibold mb-3">单件经济模型（USD）</h3>
-					{economicsProps ? (
-						<EconomicsWaterfall {...economicsProps} />
-					) : (
-						<div className="text-sm text-muted-foreground">
-							未同步单件经济模型，请运行{" "}
-							<code className="text-xs bg-muted px-1 rounded">pnpm sync</code>
-						</div>
-					)}
-				</section>
-			</div>
+			{/* Section C: Funnel + Economics */}
+			<section className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+				<Card className="lg:col-span-5">
+					<CardHeader>
+						<CardTitle>累计转化漏斗</CardTitle>
+						<CardDescription>
+							{records.length} 天累计 · 曝光 → 点击 → 订单 → 销售
+						</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<ConversionFunnel steps={funnelSteps} />
+					</CardContent>
+				</Card>
+				<Card className="lg:col-span-7">
+					<CardHeader>
+						<CardTitle>单件经济模型</CardTitle>
+						<CardDescription>USD · 售价 → 各项成本 → 单件毛利</CardDescription>
+						{breakEvenAcos !== null && (
+							<CardAction>
+								<Badge variant="outline" className="text-[10px] font-normal">
+									Break-even ACoS{" "}
+									<Num className="ml-1">{(breakEvenAcos * 100).toFixed(1)}</Num>
+									%
+								</Badge>
+							</CardAction>
+						)}
+					</CardHeader>
+					<CardContent>
+						{economicsProps ? (
+							<EconomicsWaterfall {...economicsProps} />
+						) : (
+							<div className="text-sm text-muted-foreground">
+								未同步单件经济模型
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			</section>
+
+			{/* Section D: Recent 7-day detail table */}
+			<Card>
+				<CardHeader>
+					<CardTitle>最近 7 天明细</CardTitle>
+					<CardDescription>当日数据 · 倒序</CardDescription>
+				</CardHeader>
+				<CardContent className="px-0">
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>日期</TableHead>
+								<TableHead className="text-right">Day</TableHead>
+								<TableHead className="text-right">总单</TableHead>
+								<TableHead className="text-right">广告单</TableHead>
+								<TableHead className="text-right">花费</TableHead>
+								<TableHead className="text-right">广告销售</TableHead>
+								<TableHead className="text-right">总销售</TableHead>
+								<TableHead className="text-right">Impr</TableHead>
+								<TableHead className="text-right">Clicks</TableHead>
+								<TableHead className="text-right">库存</TableHead>
+								<TableHead>备注</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{recent7.map((r) => (
+								<TableRow key={r.id}>
+									<TableCell className="font-mono text-xs">
+										{r.date.toISOString().slice(0, 10)}
+									</TableCell>
+									<TableCell className="text-right">
+										<Num>{r.dayNum}</Num>
+									</TableCell>
+									<TableCell className="text-right">
+										<Num>{r.totalOrders}</Num>
+									</TableCell>
+									<TableCell className="text-right">
+										<Num>{r.adOrders}</Num>
+									</TableCell>
+									<TableCell className="text-right">
+										<Num>${r.adSpendUsd.toFixed(2)}</Num>
+									</TableCell>
+									<TableCell className="text-right">
+										<Num>${r.adSalesUsd.toFixed(2)}</Num>
+									</TableCell>
+									<TableCell className="text-right">
+										<Num>${r.totalSalesUsd.toFixed(2)}</Num>
+									</TableCell>
+									<TableCell className="text-right">
+										<Num>{r.impressions.toLocaleString()}</Num>
+									</TableCell>
+									<TableCell className="text-right">
+										<Num>{r.clicks}</Num>
+									</TableCell>
+									<TableCell className="text-right">
+										{r.inventory === null ? (
+											<span className="text-amber-500 text-xs">未填</span>
+										) : (
+											<Num>{r.inventory}</Num>
+										)}
+									</TableCell>
+									<TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+										{r.notes ?? "—"}
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }
