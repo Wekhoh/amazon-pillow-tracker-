@@ -65,6 +65,71 @@ export function rolling7d(
 	};
 }
 
+/**
+ * Compute % delta of current 7D window vs prior 7D window (shifted -7).
+ * Returns null if either window has 0 denominator data, or index too low.
+ */
+export function delta7d(
+	records: DailyMetric[],
+	index: number,
+	field: keyof Pick<
+		Rolling7dResult,
+		"acos" | "tacos" | "cvr" | "roas" | "spend" | "adSales" | "totalSales"
+	>,
+): number | null {
+	if (index < 13) return null;
+	const curr = rolling7d(records, index);
+	const prev = rolling7d(records, index - 7);
+	const cv = curr[field];
+	const pv = prev[field];
+	if (cv === null || pv === null || pv === 0) return null;
+	return (cv - pv) / Math.abs(pv);
+}
+
+/**
+ * Compute sparkline data for a rolling7d metric over the last N records.
+ */
+export function sparklineData(
+	records: DailyMetric[],
+	field: keyof Pick<Rolling7dResult, "acos" | "tacos" | "cvr" | "roas">,
+	windowDays = 14,
+): { i: number; v: number | null }[] {
+	const start = Math.max(0, records.length - windowDays);
+	const out: { i: number; v: number | null }[] = [];
+	for (let i = start; i < records.length; i++) {
+		const r = rolling7d(records, i);
+		out.push({ i: i - start, v: r[field] });
+	}
+	return out;
+}
+
+/**
+ * Funnel metrics summed over a date range.
+ * Accepts DailyMetric rows extended with impressions (extracted from DB rows).
+ */
+export interface FunnelStats {
+	impressions: number;
+	clicks: number;
+	orders: number;
+	sales: number;
+}
+
+export function aggregateFunnel(
+	records: Array<DailyMetric & { impressions?: number }>,
+): FunnelStats {
+	let impressions = 0;
+	let clicks = 0;
+	let orders = 0;
+	let sales = 0;
+	for (const r of records) {
+		impressions += r.impressions ?? 0;
+		clicks += r.clicks ?? 0;
+		orders += r.adOrders ?? 0;
+		sales += r.adSalesUsd ?? 0;
+	}
+	return { impressions, clicks, orders, sales };
+}
+
 export type Quadrant =
 	| "双改善"
 	| "自然增长信号"

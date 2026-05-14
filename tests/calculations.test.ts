@@ -3,6 +3,9 @@ import {
 	getPhase,
 	rolling7d,
 	quadrant,
+	delta7d,
+	sparklineData,
+	aggregateFunnel,
 	type DailyMetric,
 } from "../src/lib/calculations";
 
@@ -147,5 +150,88 @@ describe("quadrant", () => {
 				prevTacos: 0.18,
 			}),
 		).toBe("insufficient_data");
+	});
+});
+
+// Build a 16-row synthetic series for delta7d / sparkline tests.
+// Days 0-6: spend rises 1->7 USD, adSales rises 2->14 (ACoS = 50%).
+// Days 7-13: spend rises 8->14 USD, adSales rises 24->48 (ACoS ~ 30%).
+// Days 14-15: spend stays 15-16 USD, adSales 50-52 (ACoS slightly lower).
+const longSample: DailyMetric[] = Array.from({ length: 16 }, (_, i) => {
+	const day = i + 1;
+	let spend: number;
+	let adSales: number;
+	if (i <= 6) {
+		spend = day;
+		adSales = day * 2;
+	} else if (i <= 13) {
+		spend = day;
+		adSales = day * 3;
+	} else {
+		spend = day;
+		adSales = day * 3.4;
+	}
+	return {
+		date: new Date(2026, 3, 9 + i),
+		adSpendUsd: spend,
+		adSalesUsd: adSales,
+		totalSalesUsd: adSales * 2,
+		clicks: 10,
+		adOrders: 1,
+		totalOrders: 2,
+	};
+});
+
+describe("delta7d", () => {
+	it("returns null when index < 13 (insufficient prior window)", () => {
+		expect(delta7d(longSample, 0, "acos")).toBeNull();
+		expect(delta7d(longSample, 12, "acos")).toBeNull();
+	});
+
+	it("returns a negative delta when ACoS improved (decreased) vs 7 days ago", () => {
+		// At index 14: current 7d window (days 8-14) has lower ACoS than prior
+		// 7d window (days 1-7) which was at 50% ACoS.
+		const d = delta7d(longSample, 14, "acos");
+		expect(d).not.toBeNull();
+		expect(d!).toBeLessThan(0);
+	});
+
+	it("returns a positive delta when spend increased vs 7 days ago", () => {
+		const d = delta7d(longSample, 14, "spend");
+		expect(d).not.toBeNull();
+		expect(d!).toBeGreaterThan(0);
+	});
+});
+
+describe("sparklineData", () => {
+	it("trims to windowDays for series longer than windowDays", () => {
+		const out = sparklineData(longSample, "acos", 7);
+		expect(out.length).toBe(7);
+		expect(out[0].i).toBe(0);
+		expect(out[6].i).toBe(6);
+	});
+
+	it("returns the whole series when windowDays exceeds length", () => {
+		const out = sparklineData(longSample.slice(0, 5), "acos", 14);
+		expect(out.length).toBe(5);
+	});
+});
+
+describe("aggregateFunnel", () => {
+	it("sums impressions, clicks, adOrders, adSalesUsd across records", () => {
+		const extended = longSample.slice(0, 3).map((r, i) => ({
+			...r,
+			impressions: 100 * (i + 1),
+		}));
+		const f = aggregateFunnel(extended);
+		expect(f.impressions).toBe(600); // 100 + 200 + 300
+		expect(f.clicks).toBe(30);
+		expect(f.orders).toBe(3);
+		expect(f.sales).toBeCloseTo(2 + 4 + 6); // adSalesUsd 2,4,6
+	});
+
+	it("treats missing impressions as 0", () => {
+		const f = aggregateFunnel(longSample.slice(0, 2));
+		expect(f.impressions).toBe(0);
 	});
 });
