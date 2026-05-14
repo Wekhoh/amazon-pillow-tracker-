@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const navItems = [
 	{ href: "/", label: "总览" },
@@ -25,12 +26,18 @@ export function Sidebar() {
 				))}
 			</nav>
 			<Separator className="my-4" />
-			<p className="text-xs text-muted-foreground mt-auto">
-				数据源：Excel 镜像
-				<br />
-				最后同步：运行{" "}
-				<code className="text-[10px] bg-muted px-1 rounded">pnpm sync</code>
-			</p>
+			<div className="mt-auto space-y-3">
+				<div className="flex items-center justify-between">
+					<span className="text-xs text-muted-foreground">主题</span>
+					<ThemeToggle />
+				</div>
+				<p className="text-xs text-muted-foreground">
+					数据源：Excel 镜像
+					<br />
+					最后同步：运行{" "}
+					<code className="text-[10px] bg-muted px-1 rounded">pnpm sync</code>
+				</p>
+			</div>
 		</aside>
 	);
 }
