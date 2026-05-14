@@ -1,65 +1,149 @@
-import Image from "next/image";
+import { prisma } from "@/lib/prisma";
+import { rolling7d, getPhase, type DailyMetric } from "@/lib/calculations";
+import { AsinSwitcher } from "@/components/asin-switcher";
+import { KpiCard } from "@/components/kpi-card";
+import { StageProgress } from "@/components/stage-progress";
+import { RollingChart } from "@/components/rolling-chart";
 
-export default function Home() {
-  return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+export const dynamic = "force-dynamic";
+
+interface PageProps {
+	searchParams: Promise<{ asin?: string }>;
+}
+
+export default async function HomePage({ searchParams }: PageProps) {
+	const params = await searchParams;
+	const label = (params.asin === "DBL" ? "DBL" : "BLK") as "BLK" | "DBL";
+
+	const asin = await prisma.asin.findUnique({ where: { label } });
+	if (!asin) {
+		return (
+			<div className="text-red-500">
+				ASIN {label} 未在数据库中。请先运行 <code>pnpm prisma db seed</code>
+			</div>
+		);
+	}
+
+	const records = await prisma.dailyRecord.findMany({
+		where: { asinId: asin.id },
+		orderBy: { date: "asc" },
+	});
+
+	if (records.length === 0) {
+		return (
+			<div>
+				<h2 className="text-xl font-semibold mb-2">还没有数据</h2>
+				<p>
+					请运行 <code className="px-1 py-0.5 bg-muted rounded">pnpm sync</code>{" "}
+					从 Excel 同步
+				</p>
+			</div>
+		);
+	}
+
+	const metrics: DailyMetric[] = records.map((r) => ({
+		date: r.date,
+		adSpendUsd: r.adSpendUsd,
+		adSalesUsd: r.adSalesUsd,
+		totalSalesUsd: r.totalSalesUsd,
+		clicks: r.clicks,
+		adOrders: r.adOrders,
+		totalOrders: r.totalOrders,
+	}));
+
+	const latestIdx = metrics.length - 1;
+	const latest = rolling7d(metrics, latestIdx);
+	const latestRow = records[latestIdx];
+	const phase = getPhase(latestRow.dayNum);
+	const totalSpend = records.reduce((s, r) => s + r.adSpendUsd, 0);
+
+	const chartData = metrics.map((_, i) => {
+		const r = rolling7d(metrics, i);
+		return {
+			date: records[i].date.toISOString().slice(5, 10),
+			acos: r.acos,
+			tacos: r.tacos,
+			cvr: r.cvr,
+			roas: r.roas,
+		};
+	});
+
+	return (
+		<div className="space-y-6">
+			<header className="flex justify-between items-start">
+				<div>
+					<h2 className="text-2xl font-bold">
+						{label} ({asin.color}) — {asin.code}
+					</h2>
+					<p className="text-muted-foreground text-sm">
+						最新数据日期：{latestRow.date.toISOString().slice(0, 10)} · Day{" "}
+						{latestRow.dayNum}
+					</p>
+				</div>
+				<AsinSwitcher />
+			</header>
+
+			<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+				<KpiCard label="当前阶段" value={phase} />
+				<KpiCard
+					label="Rolling 7D ACoS"
+					value={latest.acos !== null ? (latest.acos * 100).toFixed(1) : null}
+					unit="%"
+					numericValue={latest.acos}
+					warningThreshold={{ value: 0.3234, comparator: "gt" }}
+					hint="红线 32.34%"
+				/>
+				<KpiCard
+					label="Rolling 7D TACoS"
+					value={latest.tacos !== null ? (latest.tacos * 100).toFixed(1) : null}
+					unit="%"
+					numericValue={latest.tacos}
+					warningThreshold={{ value: 0.3234, comparator: "gt" }}
+				/>
+				<KpiCard
+					label="Rolling 7D CVR"
+					value={latest.cvr !== null ? (latest.cvr * 100).toFixed(1) : null}
+					unit="%"
+				/>
+				<KpiCard
+					label="Rolling 7D ROAS"
+					value={latest.roas !== null ? latest.roas.toFixed(2) : null}
+				/>
+				<KpiCard label="累计花费" value={`$${totalSpend.toFixed(2)}`} />
+			</div>
+
+			<section>
+				<h3 className="text-lg font-semibold mb-3">阶段进度</h3>
+				<StageProgress currentDay={latestRow.dayNum} />
+			</section>
+
+			<section>
+				<h3 className="text-lg font-semibold mb-3">Rolling 7D 趋势</h3>
+				<RollingChart data={chartData} />
+			</section>
+
+			<section>
+				<h3 className="text-lg font-semibold mb-3">最新状态</h3>
+				<div className="text-sm space-y-1">
+					<div>
+						库存可售：
+						{latestRow.inventory ?? (
+							<span className="text-orange-600">未填</span>
+						)}
+					</div>
+					<div>
+						当日总单：{latestRow.totalOrders} · 广告单：{latestRow.adOrders} ·
+						自然单：{latestRow.totalOrders - latestRow.adOrders}
+					</div>
+					<div>
+						当日花费：${latestRow.adSpendUsd.toFixed(2)} · 当日销售：$
+						{latestRow.totalSalesUsd.toFixed(2)}
+					</div>
+					{latestRow.notes && (
+						<div className="text-muted-foreground">备注：{latestRow.notes}</div>
+					)}
+				</div>
+			</section>
+		</div>
+	);
 }
