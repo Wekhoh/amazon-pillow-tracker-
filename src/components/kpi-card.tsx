@@ -27,7 +27,10 @@ export function KpiCard({
 			: numericValue < warningThreshold.value);
 
 	return (
-		<Card className={cn(isWarning && "border-orange-500")}>
+		<Card
+			className={cn(isWarning && "border-2")}
+			style={isWarning ? { borderColor: "#f97316" } : undefined}
+		>
 			<CardHeader className="pb-2">
 				<CardTitle className="text-sm font-medium text-muted-foreground">
 					{label}

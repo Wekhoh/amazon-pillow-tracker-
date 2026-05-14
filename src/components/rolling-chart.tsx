@@ -47,6 +47,10 @@ export function RollingChart({ data }: { data: DataPoint[] }) {
 					dataKey="acos"
 					stroke="#dc2626"
 					name="ACoS"
+					strokeWidth={2}
+					dot={{ r: 2 }}
+					activeDot={{ r: 5 }}
+					isAnimationActive={false}
 					connectNulls
 				/>
 				<Line
@@ -55,6 +59,10 @@ export function RollingChart({ data }: { data: DataPoint[] }) {
 					dataKey="tacos"
 					stroke="#f97316"
 					name="TACoS"
+					strokeWidth={2}
+					dot={{ r: 2 }}
+					activeDot={{ r: 5 }}
+					isAnimationActive={false}
 					connectNulls
 				/>
 				<Line
@@ -63,6 +71,10 @@ export function RollingChart({ data }: { data: DataPoint[] }) {
 					dataKey="cvr"
 					stroke="#16a34a"
 					name="CVR"
+					strokeWidth={2}
+					dot={{ r: 2 }}
+					activeDot={{ r: 5 }}
+					isAnimationActive={false}
 					connectNulls
 				/>
 				<Line
@@ -71,6 +83,10 @@ export function RollingChart({ data }: { data: DataPoint[] }) {
 					dataKey="roas"
 					stroke="#2563eb"
 					name="ROAS"
+					strokeWidth={2}
+					dot={{ r: 2 }}
+					activeDot={{ r: 5 }}
+					isAnimationActive={false}
 					connectNulls
 				/>
 			</LineChart>
