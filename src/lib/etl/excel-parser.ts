@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { ParamInput, DailyRecordInput } from "./types";
+import type { ParamInput, DailyRecordInput, UnitEconomicsInput } from "./types";
 
 const PARAM_KEY_MAP: Record<string, string> = {
 	"售价(USD)": "price_usd",
@@ -114,6 +114,45 @@ export function parseDailyRecords(
 		});
 	}
 	return records;
+}
+
+export function parseUnitEconomics(
+	excelPath: string,
+	asinLabel: "BLK" | "DBL",
+): UnitEconomicsInput {
+	const wb = XLSX.readFile(excelPath, { cellDates: true });
+	const sheetName = `${asinLabel} 运营计划`;
+	const ws = wb.Sheets[sheetName];
+	if (!ws) throw new Error(`${sheetName} not found`);
+
+	const cell = (ref: string): number | null => {
+		const c = ws[ref];
+		if (!c) return null;
+		if (typeof c.v === "number") return c.v;
+		if (typeof c.v === "string") {
+			const n = Number(c.v);
+			return Number.isNaN(n) ? null : n;
+		}
+		return null;
+	};
+
+	return {
+		asinLabel,
+		priceUsd: cell("B6") ?? 23.99,
+		fxRateCnyPerUsd: cell("B7") ?? 6.8,
+		cogsPurchaseCny: cell("B8") ?? 0,
+		cogsShippingCny: cell("B9") ?? 0,
+		cogsPackagingCny: cell("B10") ?? 0,
+		commissionRate: cell("B11") ?? 0.15,
+		fbaFeeUsd: cell("B12") ?? 0,
+		inboundFeeUsd: cell("B13") ?? 0,
+		storageAmortizationUsd: cell("B19") ?? 0,
+		returnRateEstimate: cell("B15") ?? 0,
+		returnThreshold: cell("B16") ?? 0,
+		returnFeeUsd: cell("B17") ?? 0,
+		inventoryQty: cell("B30") ?? 0,
+		adBudgetCny: cell("B31") ?? 0,
+	};
 }
 
 function numOr0(v: unknown): number {

@@ -7,6 +7,25 @@ export const ParamSchema = z.object({
 });
 export type ParamInput = z.infer<typeof ParamSchema>;
 
+export const UnitEconomicsSchema = z.object({
+	asinLabel: z.enum(["BLK", "DBL"]),
+	priceUsd: z.number().positive(),
+	fxRateCnyPerUsd: z.number().positive(),
+	cogsPurchaseCny: z.number().nonnegative(),
+	cogsShippingCny: z.number().nonnegative(),
+	cogsPackagingCny: z.number().nonnegative(),
+	fbaFeeUsd: z.number().nonnegative(),
+	inboundFeeUsd: z.number().nonnegative(),
+	storageAmortizationUsd: z.number().nonnegative(),
+	commissionRate: z.number().min(0).max(1),
+	returnRateEstimate: z.number().min(0).max(1),
+	returnThreshold: z.number().min(0).max(1),
+	returnFeeUsd: z.number().nonnegative(),
+	inventoryQty: z.number().int().nonnegative(),
+	adBudgetCny: z.number().nonnegative(),
+});
+export type UnitEconomicsInput = z.infer<typeof UnitEconomicsSchema>;
+
 export const DailyRecordSchema = z.object({
 	asinLabel: z.enum(["BLK", "DBL"]),
 	date: z.date(),

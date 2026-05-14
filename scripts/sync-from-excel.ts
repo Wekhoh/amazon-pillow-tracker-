@@ -1,5 +1,9 @@
 import { prisma } from "../src/lib/prisma";
-import { parseParams, parseDailyRecords } from "../src/lib/etl/excel-parser";
+import {
+	parseParams,
+	parseDailyRecords,
+	parseUnitEconomics,
+} from "../src/lib/etl/excel-parser";
 import { differenceInDays } from "date-fns";
 import dotenv from "dotenv";
 
@@ -67,10 +71,26 @@ async function syncDailyRecords(params: { key: string; value: string }[]) {
 	}
 }
 
+async function syncUnitEconomics() {
+	for (const label of ["BLK", "DBL"] as const) {
+		const asin = await prisma.asin.findUnique({ where: { label } });
+		if (!asin) continue;
+		const ue = parseUnitEconomics(EXCEL_PATH!, label);
+		const { asinLabel: _omit, ...ueData } = ue;
+		await prisma.unitEconomics.upsert({
+			where: { asinId: asin.id },
+			update: { ...ueData },
+			create: { asinId: asin.id, ...ueData },
+		});
+	}
+	console.log("Synced unit economics for BLK and DBL");
+}
+
 async function main() {
 	console.log(`Reading: ${EXCEL_PATH}`);
 	const params = await syncParams();
 	await syncDailyRecords(params);
+	await syncUnitEconomics();
 	console.log("Sync complete");
 }
 
