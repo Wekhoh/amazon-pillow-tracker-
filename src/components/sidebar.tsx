@@ -30,6 +30,17 @@ type Snapshot = {
 	inventory: number | null;
 	acos: number | null;
 	tacos: number | null;
+	cumOrders: number;
+	cumSpend: number;
+	cumSales: number;
+};
+
+type Totals = {
+	days: number;
+	spend: number;
+	sales: number;
+	orders: number;
+	roas: number | null;
 };
 
 const PHASE_END_DAY: Record<Phase, number> = {
@@ -44,6 +55,7 @@ const PHASE_END_DAY: Record<Phase, number> = {
 async function getSnapshots(): Promise<{
 	snaps: Snapshot[];
 	tacosRedline: number;
+	totals: Totals;
 }> {
 	const redlineParam = await prisma.param.findUnique({
 		where: { key: "tacos_redline" },
@@ -51,6 +63,7 @@ async function getSnapshots(): Promise<{
 	const tacosRedline = redlineParam ? Number(redlineParam.value) : 0.3234;
 
 	const snaps: Snapshot[] = [];
+	let maxDays = 0;
 	for (const label of ["BLK", "DBL"] as const) {
 		const asin = await prisma.asin.findUnique({ where: { label } });
 		if (!asin) continue;
@@ -74,6 +87,10 @@ async function getSnapshots(): Promise<{
 		const latestInventory =
 			[...records].reverse().find((x) => x.inventory !== null)?.inventory ??
 			null;
+		const cumSpend = records.reduce((s, x) => s + x.adSpendUsd, 0);
+		const cumSales = records.reduce((s, x) => s + x.totalSalesUsd, 0);
+		const cumOrders = records.reduce((s, x) => s + x.totalOrders, 0);
+		maxDays = Math.max(maxDays, records.length);
 		snaps.push({
 			label,
 			dayNum: r.dayNum,
@@ -83,9 +100,22 @@ async function getSnapshots(): Promise<{
 			inventory: latestInventory,
 			acos: w.acos,
 			tacos: w.tacos,
+			cumOrders,
+			cumSpend,
+			cumSales,
 		});
 	}
-	return { snaps, tacosRedline };
+	const totalSpend = snaps.reduce((s, x) => s + x.cumSpend, 0);
+	const totalSales = snaps.reduce((s, x) => s + x.cumSales, 0);
+	const totalOrders = snaps.reduce((s, x) => s + x.cumOrders, 0);
+	const totals: Totals = {
+		days: maxDays,
+		spend: totalSpend,
+		sales: totalSales,
+		orders: totalOrders,
+		roas: totalSpend > 0 ? totalSales / totalSpend : null,
+	};
+	return { snaps, tacosRedline, totals };
 }
 
 function MiniSnap({ s, tacosRedline }: { s: Snapshot; tacosRedline: number }) {
@@ -142,8 +172,13 @@ function MiniSnap({ s, tacosRedline }: { s: Snapshot; tacosRedline: number }) {
 	);
 }
 
+function fmtMoney(v: number): string {
+	if (v >= 1000) return `$${(v / 1000).toFixed(1)}k`;
+	return `$${v.toFixed(0)}`;
+}
+
 export async function Sidebar() {
-	const { snaps, tacosRedline } = await getSnapshots();
+	const { snaps, tacosRedline, totals } = await getSnapshots();
 	const blk = snaps.find((s) => s.label === "BLK");
 	const dbl = snaps.find((s) => s.label === "DBL");
 	const dayNum = blk?.dayNum ?? dbl?.dayNum ?? 0;
@@ -209,6 +244,46 @@ export async function Sidebar() {
 								className="h-full bg-blue-500 transition-all"
 								style={{ width: `${phasePct}%` }}
 							/>
+						</div>
+					</div>
+
+					<div className="mt-3 rounded-md border bg-background/60 px-2.5 py-2 space-y-1.5">
+						<div className="flex items-baseline justify-between">
+							<span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+								累计回报
+							</span>
+							<span className="text-[10px] text-muted-foreground tabular-nums">
+								{totals.days} 天
+							</span>
+						</div>
+						<div className="flex items-baseline justify-between text-[11px]">
+							<span className="text-muted-foreground text-[10px]">
+								花费 → 销售
+							</span>
+							<span className="font-mono tabular-nums">
+								{fmtMoney(totals.spend)}{" "}
+								<span className="text-muted-foreground">→</span>{" "}
+								<span className="text-foreground">
+									{fmtMoney(totals.sales)}
+								</span>
+							</span>
+						</div>
+						<div className="grid grid-cols-2 gap-x-2 pt-1 border-t border-border/40 text-[11px]">
+							<div className="flex items-baseline justify-between">
+								<span className="text-muted-foreground text-[10px]">ROAS</span>
+								<span
+									className={cn(
+										"font-mono tabular-nums",
+										totals.roas !== null && totals.roas < 1 && "text-red-500",
+									)}
+								>
+									{totals.roas !== null ? totals.roas.toFixed(2) : "—"}
+								</span>
+							</div>
+							<div className="flex items-baseline justify-between">
+								<span className="text-muted-foreground text-[10px]">总单</span>
+								<span className="font-mono tabular-nums">{totals.orders}</span>
+							</div>
 						</div>
 					</div>
 				</>
