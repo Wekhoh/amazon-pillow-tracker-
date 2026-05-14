@@ -58,10 +58,11 @@ export function QuadrantScatter({ points }: QuadrantScatterProps) {
 					<ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="2 2" />
 					<Tooltip
 						cursor={{ strokeDasharray: "3 3" }}
-						formatter={(v: number, n: string) => [
-							`${(v * 100).toFixed(2)}%`,
-							n,
-						]}
+						formatter={(value, name) => {
+							const num = typeof value === "number" ? value : Number(value);
+							if (Number.isNaN(num)) return ["—", name];
+							return [`${(num * 100).toFixed(2)}%`, name];
+						}}
 						labelFormatter={(_, payload) =>
 							(payload?.[0]?.payload as QuadrantPoint)?.date ?? ""
 						}
