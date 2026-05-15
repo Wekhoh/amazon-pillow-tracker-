@@ -15,7 +15,34 @@ model Asin {
   dailyRecords  DailyRecord[]
   unitEconomics UnitEconomics?
   keywords      Keyword[]
+  placements    Placement[]
   createdAt     DateTime       @default(now())
+}
+
+model Placement {
+  id               Int      @id @default(autoincrement())
+  asinId           Int
+  asin             Asin     @relation(fields: [asinId], references: [id])
+  date             DateTime
+  campaignName     String
+  placement        String
+  placementType    String
+  biddingStrategy  String?
+  portfolioName    String?
+  impressions      Int      @default(0)
+  clicks           Int      @default(0)
+  orders           Int      @default(0)
+  units            Int      @default(0)
+  spendUsd         Float    @default(0)
+  salesUsd         Float    @default(0)
+  cpcUsd           Float?
+  notes            String?
+  dailyCloseStatus String?
+  importedAt       DateTime @default(now())
+
+  @@unique([asinId, date, campaignName, placement])
+  @@index([asinId, placementType])
+  @@index([asinId, date])
 }
 
 model Keyword {

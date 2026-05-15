@@ -43,6 +43,26 @@ export const DailyRecordSchema = z.object({
 });
 export type DailyRecordInput = z.infer<typeof DailyRecordSchema>;
 
+export const PlacementSchema = z.object({
+	asinLabel: z.enum(["BLK", "DBL"]),
+	date: z.date(),
+	campaignName: z.string(),
+	placement: z.string(),
+	placementType: z.enum(["TOS", "ROS", "PP", "OTHER"]),
+	biddingStrategy: z.string().nullable(),
+	portfolioName: z.string().nullable(),
+	impressions: z.number().int().nonnegative(),
+	clicks: z.number().int().nonnegative(),
+	orders: z.number().int().nonnegative(),
+	units: z.number().int().nonnegative(),
+	spendUsd: z.number().nonnegative(),
+	salesUsd: z.number().nonnegative(),
+	cpcUsd: z.number().nonnegative().nullable(),
+	notes: z.string().nullable(),
+	dailyCloseStatus: z.string().nullable(),
+});
+export type PlacementInput = z.infer<typeof PlacementSchema>;
+
 export const KeywordSchema = z.object({
 	asinLabel: z.enum(["BLK", "DBL"]),
 	date: z.date(),

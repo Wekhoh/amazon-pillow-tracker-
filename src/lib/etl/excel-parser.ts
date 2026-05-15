@@ -4,7 +4,39 @@ import type {
 	DailyRecordInput,
 	UnitEconomicsInput,
 	KeywordInput,
+	PlacementInput,
 } from "./types";
+
+const PLACEMENT_COLS = {
+	date: 0,
+	sku: 1,
+	asin: 2,
+	portfolioName: 3,
+	campaignName: 5,
+	biddingStrategy: 8,
+	placement: 9,
+	impressions: 10,
+	clicks: 11,
+	cpcUsd: 12,
+	spendUsd: 13,
+	salesUsd: 14,
+	orders: 17,
+	units: 18,
+	// [19] Source File intentionally skipped — contains local OS path with username
+	// [20] Import Timestamp also dropped — Excel-side metadata, not business signal
+	dailyCloseStatus: 21,
+	notes: 22,
+} as const;
+
+function normalizePlacementType(
+	placement: string,
+): "TOS" | "ROS" | "PP" | "OTHER" {
+	const p = placement.toLowerCase();
+	if (p.includes("top of search")) return "TOS";
+	if (p.includes("rest of search")) return "ROS";
+	if (p.includes("detail page") || p.includes("product page")) return "PP";
+	return "OTHER";
+}
 
 const KEYWORD_COLS = {
 	date: 0,
@@ -253,6 +285,52 @@ export function parseKeywords(
 			monthlySearchVolume: nullableInt(row[KEYWORD_COLS.monthlySearchVolume]),
 			abaWeeklyRank: nullableInt(row[KEYWORD_COLS.abaWeeklyRank]),
 			notes: nullableStr(row[KEYWORD_COLS.notes]),
+		});
+	}
+	return out;
+}
+
+export function parsePlacements(
+	excelPath: string,
+	asinLabel: "BLK" | "DBL",
+): PlacementInput[] {
+	const wb = XLSX.readFile(excelPath, { cellDates: true });
+	const sheetName = `${asinLabel} Placement明细`;
+	const ws = wb.Sheets[sheetName];
+	if (!ws) throw new Error(`${sheetName} sheet not found`);
+
+	// Header at row 0 (idx 0), data from row 1 (idx 1)
+	const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
+		header: 1,
+		range: 1,
+		raw: true,
+	});
+
+	const out: PlacementInput[] = [];
+	for (const row of rows) {
+		const dateCell = row[PLACEMENT_COLS.date];
+		const placementCell = row[PLACEMENT_COLS.placement];
+		const campaignCell = row[PLACEMENT_COLS.campaignName];
+		if (!(dateCell instanceof Date)) continue;
+		if (typeof placementCell !== "string" || !placementCell.trim()) continue;
+		if (typeof campaignCell !== "string" || !campaignCell.trim()) continue;
+		out.push({
+			asinLabel,
+			date: dateToLocalMidnightUtc(dateCell),
+			campaignName: campaignCell.trim(),
+			placement: placementCell.trim(),
+			placementType: normalizePlacementType(placementCell),
+			biddingStrategy: nullableStr(row[PLACEMENT_COLS.biddingStrategy]),
+			portfolioName: nullableStr(row[PLACEMENT_COLS.portfolioName]),
+			impressions: intOr0(row[PLACEMENT_COLS.impressions]),
+			clicks: intOr0(row[PLACEMENT_COLS.clicks]),
+			orders: intOr0(row[PLACEMENT_COLS.orders]),
+			units: intOr0(row[PLACEMENT_COLS.units]),
+			spendUsd: numOr0(row[PLACEMENT_COLS.spendUsd]),
+			salesUsd: numOr0(row[PLACEMENT_COLS.salesUsd]),
+			cpcUsd: nullableNum(row[PLACEMENT_COLS.cpcUsd]),
+			dailyCloseStatus: nullableStr(row[PLACEMENT_COLS.dailyCloseStatus]),
+			notes: nullableStr(row[PLACEMENT_COLS.notes]),
 		});
 	}
 	return out;

@@ -4,6 +4,7 @@ import {
 	parseDailyRecords,
 	parseUnitEconomics,
 	parseKeywords,
+	parsePlacements,
 } from "../src/lib/etl/excel-parser";
 import { differenceInDays } from "date-fns";
 import dotenv from "dotenv";
@@ -131,12 +132,56 @@ async function syncKeywords() {
 	}
 }
 
+async function syncPlacements() {
+	for (const label of ["BLK", "DBL"] as const) {
+		const asin = await prisma.asin.findUnique({ where: { label } });
+		if (!asin) continue;
+		const rows = parsePlacements(EXCEL_PATH!, label);
+		for (const r of rows) {
+			const data = {
+				placementType: r.placementType,
+				biddingStrategy: r.biddingStrategy,
+				portfolioName: r.portfolioName,
+				impressions: r.impressions,
+				clicks: r.clicks,
+				orders: r.orders,
+				units: r.units,
+				spendUsd: r.spendUsd,
+				salesUsd: r.salesUsd,
+				cpcUsd: r.cpcUsd,
+				dailyCloseStatus: r.dailyCloseStatus,
+				notes: r.notes,
+			};
+			await prisma.placement.upsert({
+				where: {
+					asinId_date_campaignName_placement: {
+						asinId: asin.id,
+						date: r.date,
+						campaignName: r.campaignName,
+						placement: r.placement,
+					},
+				},
+				update: data,
+				create: {
+					asinId: asin.id,
+					date: r.date,
+					campaignName: r.campaignName,
+					placement: r.placement,
+					...data,
+				},
+			});
+		}
+		console.log(`Synced ${rows.length} ${label} placement rows`);
+	}
+}
+
 async function main() {
 	console.log(`Reading: ${EXCEL_PATH}`);
 	const params = await syncParams();
 	await syncDailyRecords(params);
 	await syncUnitEconomics();
 	await syncKeywords();
+	await syncPlacements();
 	console.log("Sync complete");
 }
 
