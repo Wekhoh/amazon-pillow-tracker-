@@ -14,6 +14,7 @@ Excel 仍然是 source of truth，本系统通过单向 ETL 把数据镜像到 S
 | `/?asin=DBL` | 切换到 DBL ASIN（URL 状态） |
 | `/compare` | BLK vs DBL 对比：4 张 Δ 卡 + 3 个走势图 + 8 行累计差距表 |
 | `/keywords` | 关键词台账：聚合表 + 5 个筛选 chip + 11 列可排序，标红超红线 / 标橙烧钱无转化 / 标黄低 CVR |
+| `/placements` | 投放位明细：4 张 placement 类型卡（TOS / ROS / PP / OTHER） + 占比进度条 + 5 个 chip 筛选 + 9 列可排序明细表 |
 
 侧边栏常驻显示：BLK + DBL 实时状态卡（Rolling 7D ACoS/TACoS、今日单/花费、库存）、当前阶段进度、累计 ROAS。
 
@@ -40,12 +41,13 @@ Excel (source of truth, 只读)
                                               浏览器：仪表盘 + 关键词 + 对比
 ```
 
-ETL 涵盖 5 个表：
+ETL 涵盖 6 个表：
 - `Param`（参数中心：售价、汇率、Day0、目标 CVR、TACoS 红线）
 - `Asin`（BLK / DBL 基础信息）
 - `DailyRecord`（每日核心指标 36 天 × 2 ASIN）
 - `UnitEconomics`（单件经济模型：成本、佣金、FBA fee 等）
 - `Keyword`（关键词台账：1352 行日级数据，4-tuple unique 主键）
+- `Placement`（投放位明细：1954 行日级数据，placementType 归一化为 TOS/ROS/PP/OTHER；Source File 列**故意丢弃**防本地路径泄露）
 
 ---
 
@@ -108,6 +110,7 @@ amazon-pillow-tracker/
 │   │   ├── page.tsx          # 总览
 │   │   ├── compare/page.tsx  # BLK vs DBL
 │   │   ├── keywords/page.tsx # 关键词台账
+│   │   ├── placements/page.tsx # 投放位明细
 │   │   └── layout.tsx        # 全局布局 + sidebar
 │   ├── components/
 │   │   ├── sidebar.tsx       # 常驻信息面板
@@ -140,7 +143,7 @@ amazon-pillow-tracker/
 ## 已知限制 / 下一步
 
 - 部分日期处理依赖系统时区（北京 UTC+8）；跨时区运行 ETL 需要调整 `dateToLocalMidnightUtc`
-- 关键词热力图、Placement 投放位漏斗、CVR/CPC 散点未实现（roadmap 中）
+- 关键词热力图、Placement Bid+% 散点未实现（roadmap 中）
 - 还没有 CSV 导入入口（v3 计划）
 - 没有用户认证 / 多租户 — 这是本地工具，单用户使用
 
