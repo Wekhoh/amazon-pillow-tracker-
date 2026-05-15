@@ -8,6 +8,8 @@ import {
 } from "../src/lib/etl/excel-parser";
 import { differenceInDays } from "date-fns";
 import dotenv from "dotenv";
+import fs from "node:fs";
+import path from "node:path";
 
 dotenv.config();
 
@@ -15,6 +17,18 @@ const EXCEL_PATH = process.env.EXCEL_SOURCE_PATH;
 if (!EXCEL_PATH) {
 	console.error("EXCEL_SOURCE_PATH not set in .env");
 	process.exit(1);
+}
+
+const FORCE = process.argv.includes("--force");
+
+function shouldSkipSync(): boolean {
+	if (FORCE) return false;
+	const dbPath = path.resolve("data/tracker.db");
+	if (!fs.existsSync(dbPath)) return false;
+	if (!fs.existsSync(EXCEL_PATH!)) return false;
+	const excelMtime = fs.statSync(EXCEL_PATH!).mtimeMs;
+	const dbMtime = fs.statSync(dbPath).mtimeMs;
+	return dbMtime >= excelMtime;
 }
 
 async function syncParams() {
@@ -176,6 +190,15 @@ async function syncPlacements() {
 }
 
 async function main() {
+	if (shouldSkipSync()) {
+		const excelMtime = fs.statSync(EXCEL_PATH!).mtimeMs;
+		const dbMtime = fs.statSync(path.resolve("data/tracker.db")).mtimeMs;
+		const ageSec = Math.round((dbMtime - excelMtime) / 1000);
+		console.log(
+			`DB is up to date (newer than Excel by ${ageSec}s). Skipping sync. Use --force to override.`,
+		);
+		return;
+	}
 	console.log(`Reading: ${EXCEL_PATH}`);
 	const params = await syncParams();
 	await syncDailyRecords(params);

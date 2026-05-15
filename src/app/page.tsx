@@ -145,7 +145,7 @@ export default async function HomePage({ searchParams }: PageProps) {
 		{
 			label: "销售额",
 			value: Math.round(totalAdSales),
-			unit: " $",
+			prefix: "$",
 			color: "#22c55e",
 		},
 	];

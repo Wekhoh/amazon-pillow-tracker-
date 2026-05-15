@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Separator } from "@/components/ui/separator";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { prisma } from "@/lib/prisma";
@@ -9,21 +8,8 @@ import {
 	type Phase,
 } from "@/lib/calculations";
 import { cn } from "@/lib/utils";
-import {
-	LayoutDashboard,
-	GitCompareArrows,
-	Database,
-	Package,
-	Hash,
-	Crosshair,
-} from "lucide-react";
-
-const navItems = [
-	{ href: "/", label: "总览", Icon: LayoutDashboard },
-	{ href: "/compare", label: "BLK vs DBL", Icon: GitCompareArrows },
-	{ href: "/keywords", label: "关键词台账", Icon: Hash },
-	{ href: "/placements", label: "投放位明细", Icon: Crosshair },
-];
+import { Database, Package } from "lucide-react";
+import { NavLinks } from "@/components/nav-links";
 
 type Snapshot = {
 	label: "BLK" | "DBL";
@@ -207,21 +193,7 @@ export async function Sidebar() {
 
 			<Separator className="my-1" />
 
-			<nav className="flex flex-col gap-0.5 mt-2">
-				<p className="text-[10px] uppercase tracking-wider text-muted-foreground px-3 mb-1">
-					导航
-				</p>
-				{navItems.map(({ href, label, Icon }) => (
-					<Link
-						key={href}
-						href={href}
-						className="flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-accent text-sm transition-colors"
-					>
-						<Icon className="size-4 text-muted-foreground" />
-						<span>{label}</span>
-					</Link>
-				))}
-			</nav>
+			<NavLinks />
 
 			{snaps.length > 0 && (
 				<>

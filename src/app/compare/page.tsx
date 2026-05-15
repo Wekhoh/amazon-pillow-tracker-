@@ -12,6 +12,7 @@ import {
 import { Num } from "@/components/num";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { fmtMoney, fmtPct } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -86,16 +87,6 @@ async function getAsinData(label: "BLK" | "DBL"): Promise<{
 	};
 
 	return { summary, trend };
-}
-
-function fmtPct(v: number | null, digits = 1): string {
-	if (v === null) return "—";
-	return `${(v * 100).toFixed(digits)}%`;
-}
-
-function fmtMoney(v: number): string {
-	if (v >= 1000) return `$${(v / 1000).toFixed(1)}k`;
-	return `$${v.toFixed(2)}`;
 }
 
 function DiffKpi({

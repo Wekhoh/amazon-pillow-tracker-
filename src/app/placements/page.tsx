@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { AsinSwitcher } from "@/components/asin-switcher";
 import { cn } from "@/lib/utils";
 import { ArrowDown } from "lucide-react";
+import { MAX_TABLE_ROWS, fmtMoney, fmtPct, buildHref } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -180,33 +181,6 @@ const SORT_GETTERS: Record<SortKey, (r: CampaignPlacementAgg) => number> = {
 	cvr: (r) => r.cvr ?? -Infinity,
 };
 
-function buildHref(
-	base: string,
-	current: Record<string, string | undefined>,
-	overrides: Record<string, string | null>,
-): string {
-	const sp = new URLSearchParams();
-	for (const [k, v] of Object.entries(current)) {
-		if (v !== undefined) sp.set(k, v);
-	}
-	for (const [k, v] of Object.entries(overrides)) {
-		if (v === null) sp.delete(k);
-		else sp.set(k, v);
-	}
-	const s = sp.toString();
-	return s ? `${base}?${s}` : base;
-}
-
-function fmtMoney(v: number): string {
-	if (v >= 1000) return `$${(v / 1000).toFixed(1)}k`;
-	return `$${v.toFixed(2)}`;
-}
-
-function fmtPct(v: number | null, digits = 1): string {
-	if (v === null) return "—";
-	return `${(v * 100).toFixed(digits)}%`;
-}
-
 interface PageProps {
 	searchParams: Promise<{ asin?: string; sort?: string; type?: string }>;
 }
@@ -214,7 +188,10 @@ interface PageProps {
 export default async function PlacementsPage({ searchParams }: PageProps) {
 	const params = await searchParams;
 	const label = (params.asin === "DBL" ? "DBL" : "BLK") as "BLK" | "DBL";
-	const sortKey = (params.sort as SortKey) || "spend";
+	const VALID_SORT_KEYS = Object.keys(SORT_GETTERS) as SortKey[];
+	const sortKey: SortKey = VALID_SORT_KEYS.includes(params.sort as SortKey)
+		? (params.sort as SortKey)
+		: "spend";
 	const typeFilter = params.type as PlacementType | "all" | undefined;
 	const activeType: PlacementType | "all" = typeFilter ?? "all";
 
@@ -464,7 +441,7 @@ export default async function PlacementsPage({ searchParams }: PageProps) {
 										</td>
 									</tr>
 								)}
-								{sorted.slice(0, 200).map((r, idx) => {
+								{sorted.slice(0, MAX_TABLE_ROWS).map((r, idx) => {
 									const overRedline =
 										r.acos !== null && r.acos > tacosRedline && r.salesUsd > 0;
 									const burning = r.spendUsd > 0 && r.salesUsd === 0;
@@ -537,9 +514,9 @@ export default async function PlacementsPage({ searchParams }: PageProps) {
 								})}
 							</tbody>
 						</table>
-						{sorted.length > 200 && (
+						{sorted.length > MAX_TABLE_ROWS && (
 							<p className="text-xs text-muted-foreground text-center py-3">
-								仅显示前 200 条（共 {sorted.length} 条）
+								仅显示前 {MAX_TABLE_ROWS} 条（共 {sorted.length} 条）
 							</p>
 						)}
 					</div>

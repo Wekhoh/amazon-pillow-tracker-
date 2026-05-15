@@ -3,6 +3,7 @@ import { Num } from "@/components/num";
 interface FunnelStep {
 	label: string;
 	value: number;
+	prefix?: string;
 	unit?: string;
 	conversionFromPrev?: number;
 	color: string;
@@ -38,6 +39,7 @@ export function ConversionFunnel({ steps }: ConversionFunnelProps) {
 							<span className="font-medium">{s.label}</span>
 							<div className="text-right">
 								<Num className="font-semibold">
+									{s.prefix ?? ""}
 									{s.value.toLocaleString()}
 									{s.unit ?? ""}
 								</Num>
