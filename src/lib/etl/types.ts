@@ -42,3 +42,24 @@ export const DailyRecordSchema = z.object({
 	notes: z.string().nullable(),
 });
 export type DailyRecordInput = z.infer<typeof DailyRecordSchema>;
+
+export const KeywordSchema = z.object({
+	asinLabel: z.enum(["BLK", "DBL"]),
+	date: z.date(),
+	keyword: z.string().min(1),
+	campaignName: z.string(),
+	matchType: z.string().nullable(),
+	impressions: z.number().int().nonnegative(),
+	clicks: z.number().int().nonnegative(),
+	orders: z.number().int().nonnegative(),
+	spendUsd: z.number().nonnegative(),
+	salesUsd: z.number().nonnegative(),
+	baseBidUsd: z.number().nonnegative().nullable(),
+	source: z.string().nullable(),
+	negationStatus: z.string().nullable(),
+	campaignType: z.string().nullable(),
+	monthlySearchVolume: z.number().int().nonnegative().nullable(),
+	abaWeeklyRank: z.number().int().nonnegative().nullable(),
+	notes: z.string().nullable(),
+});
+export type KeywordInput = z.infer<typeof KeywordSchema>;

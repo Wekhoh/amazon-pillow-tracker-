@@ -14,11 +14,13 @@ import {
 	GitCompareArrows,
 	Database,
 	Package,
+	Hash,
 } from "lucide-react";
 
 const navItems = [
 	{ href: "/", label: "总览", Icon: LayoutDashboard },
 	{ href: "/compare", label: "BLK vs DBL", Icon: GitCompareArrows },
+	{ href: "/keywords", label: "关键词台账", Icon: Hash },
 ];
 
 type Snapshot = {

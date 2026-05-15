@@ -14,7 +14,35 @@ model Asin {
   sku           String?
   dailyRecords  DailyRecord[]
   unitEconomics UnitEconomics?
+  keywords      Keyword[]
   createdAt     DateTime       @default(now())
+}
+
+model Keyword {
+  id                  Int      @id @default(autoincrement())
+  asinId              Int
+  asin                Asin     @relation(fields: [asinId], references: [id])
+  date                DateTime
+  keyword             String
+  campaignName        String   @default("")
+  matchType           String?
+  impressions         Int      @default(0)
+  clicks              Int      @default(0)
+  orders              Int      @default(0)
+  spendUsd            Float    @default(0)
+  salesUsd            Float    @default(0)
+  baseBidUsd          Float?
+  source              String?
+  negationStatus      String?
+  campaignType        String?
+  monthlySearchVolume Int?
+  abaWeeklyRank       Int?
+  notes               String?
+  importedAt          DateTime @default(now())
+
+  @@unique([asinId, date, keyword, campaignName])
+  @@index([asinId, keyword])
+  @@index([asinId, date])
 }
 
 model Phase {

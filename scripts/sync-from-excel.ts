@@ -3,6 +3,7 @@ import {
 	parseParams,
 	parseDailyRecords,
 	parseUnitEconomics,
+	parseKeywords,
 } from "../src/lib/etl/excel-parser";
 import { differenceInDays } from "date-fns";
 import dotenv from "dotenv";
@@ -86,11 +87,56 @@ async function syncUnitEconomics() {
 	console.log("Synced unit economics for BLK and DBL");
 }
 
+async function syncKeywords() {
+	for (const label of ["BLK", "DBL"] as const) {
+		const asin = await prisma.asin.findUnique({ where: { label } });
+		if (!asin) continue;
+		const rows = parseKeywords(EXCEL_PATH!, label);
+		for (const r of rows) {
+			const data = {
+				matchType: r.matchType,
+				impressions: r.impressions,
+				clicks: r.clicks,
+				orders: r.orders,
+				spendUsd: r.spendUsd,
+				salesUsd: r.salesUsd,
+				baseBidUsd: r.baseBidUsd,
+				source: r.source,
+				negationStatus: r.negationStatus,
+				campaignType: r.campaignType,
+				monthlySearchVolume: r.monthlySearchVolume,
+				abaWeeklyRank: r.abaWeeklyRank,
+				notes: r.notes,
+			};
+			await prisma.keyword.upsert({
+				where: {
+					asinId_date_keyword_campaignName: {
+						asinId: asin.id,
+						date: r.date,
+						keyword: r.keyword,
+						campaignName: r.campaignName,
+					},
+				},
+				update: data,
+				create: {
+					asinId: asin.id,
+					date: r.date,
+					keyword: r.keyword,
+					campaignName: r.campaignName,
+					...data,
+				},
+			});
+		}
+		console.log(`Synced ${rows.length} ${label} keyword rows`);
+	}
+}
+
 async function main() {
 	console.log(`Reading: ${EXCEL_PATH}`);
 	const params = await syncParams();
 	await syncDailyRecords(params);
 	await syncUnitEconomics();
+	await syncKeywords();
 	console.log("Sync complete");
 }
 

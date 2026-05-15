@@ -1,5 +1,29 @@
 import * as XLSX from "xlsx";
-import type { ParamInput, DailyRecordInput, UnitEconomicsInput } from "./types";
+import type {
+	ParamInput,
+	DailyRecordInput,
+	UnitEconomicsInput,
+	KeywordInput,
+} from "./types";
+
+const KEYWORD_COLS = {
+	date: 0,
+	keyword: 1,
+	campaignName: 2,
+	matchType: 3,
+	baseBidUsd: 4,
+	impressions: 11,
+	clicks: 12,
+	orders: 14,
+	spendUsd: 17,
+	salesUsd: 18,
+	notes: 20,
+	monthlySearchVolume: 22,
+	abaWeeklyRank: 23,
+	source: 24,
+	campaignType: 25,
+	negationStatus: 26,
+} as const;
 
 const PARAM_KEY_MAP: Record<string, string> = {
 	"售价(USD)": "price_usd",
@@ -175,4 +199,61 @@ function nullableInt(v: unknown): number | null {
 function nullableStr(v: unknown): string | null {
 	if (typeof v === "string" && v.trim()) return v;
 	return null;
+}
+
+function nullableNum(v: unknown): number | null {
+	if (typeof v === "number" && Number.isFinite(v)) return v;
+	if (typeof v === "string" && v.trim()) {
+		const n = Number(v);
+		return Number.isFinite(n) ? n : null;
+	}
+	return null;
+}
+
+export function parseKeywords(
+	excelPath: string,
+	asinLabel: "BLK" | "DBL",
+): KeywordInput[] {
+	const wb = XLSX.readFile(excelPath, { cellDates: true });
+	const sheetName = `${asinLabel} 关键词台账`;
+	const ws = wb.Sheets[sheetName];
+	if (!ws) throw new Error(`${sheetName} sheet not found`);
+
+	// Row 1 (idx 0): "返回总览" nav row. Row 2 (idx 1): empty. Row 3 (idx 2):
+	// header row. Data starts at row 4 (idx 3). Read raw array-of-arrays to
+	// access by column index — header names contain Chinese with parens which
+	// is fragile via sheet_to_json.
+	const rows = XLSX.utils.sheet_to_json<unknown[]>(ws, {
+		header: 1,
+		range: 3,
+		raw: true,
+	});
+
+	const out: KeywordInput[] = [];
+	for (const row of rows) {
+		const dateCell = row[KEYWORD_COLS.date];
+		const keywordCell = row[KEYWORD_COLS.keyword];
+		if (!(dateCell instanceof Date)) continue;
+		if (typeof keywordCell !== "string" || !keywordCell.trim()) continue;
+		out.push({
+			asinLabel,
+			date: dateToLocalMidnightUtc(dateCell),
+			keyword: keywordCell.trim(),
+			campaignName: nullableStr(row[KEYWORD_COLS.campaignName]) ?? "",
+			matchType: nullableStr(row[KEYWORD_COLS.matchType]),
+			impressions: intOr0(row[KEYWORD_COLS.impressions]),
+			clicks: intOr0(row[KEYWORD_COLS.clicks]),
+			orders: intOr0(row[KEYWORD_COLS.orders]),
+			spendUsd: numOr0(row[KEYWORD_COLS.spendUsd]),
+			salesUsd: numOr0(row[KEYWORD_COLS.salesUsd]),
+			baseBidUsd: nullableNum(row[KEYWORD_COLS.baseBidUsd]),
+			source: nullableStr(row[KEYWORD_COLS.source]),
+			negationStatus: nullableStr(row[KEYWORD_COLS.negationStatus]),
+			campaignType: nullableStr(row[KEYWORD_COLS.campaignType]),
+			monthlySearchVolume: nullableInt(row[KEYWORD_COLS.monthlySearchVolume]),
+			abaWeeklyRank: nullableInt(row[KEYWORD_COLS.abaWeeklyRank]),
+			notes: nullableStr(row[KEYWORD_COLS.notes]),
+		});
+	}
+	return out;
 }
