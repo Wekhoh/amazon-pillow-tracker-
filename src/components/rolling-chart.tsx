@@ -1,5 +1,7 @@
 "use client";
 
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import {
 	LineChart,
 	Line,
@@ -20,6 +22,17 @@ interface DataPoint {
 }
 
 export function RollingChart({ data }: { data: DataPoint[] }) {
+	const { resolvedTheme } = useTheme();
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
+	const isDark = mounted && resolvedTheme === "dark";
+
+	const gridColor = isDark ? "#3f3f46" : "#e4e4e7";
+	const axisColor = isDark ? "#a1a1aa" : "#71717a";
+	const tooltipBg = isDark ? "#18181b" : "#ffffff";
+	const tooltipBorder = isDark ? "#52525b" : "#e4e4e7";
+	const tooltipText = isDark ? "#fafafa" : "#0a0a0a";
+
 	const interval = Math.max(0, Math.floor(data.length / 8));
 	return (
 		<div className="aspect-[16/7] w-full">
@@ -30,12 +43,12 @@ export function RollingChart({ data }: { data: DataPoint[] }) {
 				>
 					<CartesianGrid
 						strokeDasharray="3 3"
-						stroke="hsl(var(--border))"
-						opacity={0.4}
+						stroke={gridColor}
+						opacity={0.6}
 					/>
 					<XAxis
 						dataKey="date"
-						tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+						tick={{ fontSize: 10, fill: axisColor }}
 						interval={interval}
 						tickLine={false}
 						axisLine={false}
@@ -43,7 +56,7 @@ export function RollingChart({ data }: { data: DataPoint[] }) {
 					<YAxis
 						yAxisId="left"
 						tickFormatter={(v: number) => `${(v * 100).toFixed(0)}%`}
-						tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+						tick={{ fontSize: 10, fill: axisColor }}
 						tickLine={false}
 						axisLine={false}
 						width={40}
@@ -51,18 +64,21 @@ export function RollingChart({ data }: { data: DataPoint[] }) {
 					<YAxis
 						yAxisId="right"
 						orientation="right"
-						tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+						tick={{ fontSize: 10, fill: axisColor }}
 						tickLine={false}
 						axisLine={false}
 						width={30}
 					/>
 					<Tooltip
 						contentStyle={{
-							backgroundColor: "hsl(var(--popover))",
-							borderColor: "hsl(var(--border))",
+							backgroundColor: tooltipBg,
+							borderColor: tooltipBorder,
+							color: tooltipText,
 							fontSize: 12,
 							borderRadius: 6,
 						}}
+						labelStyle={{ color: tooltipText }}
+						itemStyle={{ color: tooltipText }}
 						formatter={(value, name) => {
 							if (value === null || value === undefined) return "—";
 							const num = typeof value === "number" ? value : Number(value);

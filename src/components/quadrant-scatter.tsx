@@ -1,5 +1,7 @@
 "use client";
 
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 import {
 	ScatterChart,
 	Scatter,
@@ -25,6 +27,18 @@ interface QuadrantScatterProps {
 }
 
 export function QuadrantScatter({ points }: QuadrantScatterProps) {
+	const { resolvedTheme } = useTheme();
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
+	const isDark = mounted && resolvedTheme === "dark";
+
+	const gridColor = isDark ? "#3f3f46" : "#e4e4e7";
+	const axisColor = isDark ? "#a1a1aa" : "#71717a";
+	const refColor = isDark ? "#52525b" : "#94a3b8";
+	const tooltipBg = isDark ? "#18181b" : "#ffffff";
+	const tooltipBorder = isDark ? "#52525b" : "#e4e4e7";
+	const tooltipText = isDark ? "#fafafa" : "#0a0a0a";
+
 	if (points.length === 0) {
 		return (
 			<div className="text-sm text-muted-foreground py-8 text-center">
@@ -36,28 +50,45 @@ export function QuadrantScatter({ points }: QuadrantScatterProps) {
 		<div className="space-y-2">
 			<ResponsiveContainer width="100%" height={280}>
 				<ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-					<CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+					<CartesianGrid
+						strokeDasharray="3 3"
+						stroke={gridColor}
+						opacity={0.6}
+					/>
 					<XAxis
 						type="number"
 						dataKey="deltaAcos"
 						name="ΔACoS"
 						tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-						tick={{ fontSize: 11 }}
+						tick={{ fontSize: 11, fill: axisColor }}
 						domain={["dataMin", "dataMax"]}
+						tickLine={false}
+						axisLine={false}
 					/>
 					<YAxis
 						type="number"
 						dataKey="deltaTacos"
 						name="ΔTACoS"
 						tickFormatter={(v) => `${(v * 100).toFixed(0)}%`}
-						tick={{ fontSize: 11 }}
+						tick={{ fontSize: 11, fill: axisColor }}
 						domain={["dataMin", "dataMax"]}
+						tickLine={false}
+						axisLine={false}
 					/>
 					<ZAxis range={[60, 120]} />
-					<ReferenceLine x={0} stroke="#94a3b8" strokeDasharray="2 2" />
-					<ReferenceLine y={0} stroke="#94a3b8" strokeDasharray="2 2" />
+					<ReferenceLine x={0} stroke={refColor} strokeDasharray="2 2" />
+					<ReferenceLine y={0} stroke={refColor} strokeDasharray="2 2" />
 					<Tooltip
 						cursor={{ strokeDasharray: "3 3" }}
+						contentStyle={{
+							backgroundColor: tooltipBg,
+							borderColor: tooltipBorder,
+							color: tooltipText,
+							fontSize: 12,
+							borderRadius: 6,
+						}}
+						labelStyle={{ color: tooltipText }}
+						itemStyle={{ color: tooltipText }}
 						formatter={(value, name) => {
 							const num = typeof value === "number" ? value : Number(value);
 							if (Number.isNaN(num)) return ["—", name];
